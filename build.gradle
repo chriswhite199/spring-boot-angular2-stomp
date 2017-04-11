@@ -1,0 +1,73 @@
+buildscript {
+	ext {
+		springBootVersion = '1.5.2.RELEASE'
+	}
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+	}
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+
+jar {
+	baseName = 'spring-boot-angular2'
+	version = '0.0.1-SNAPSHOT'
+}
+
+sourceCompatibility = 1.8
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile('org.springframework.boot:spring-boot-starter-websocket')
+	runtime('org.springframework.boot:spring-boot-devtools')
+	compileOnly('org.projectlombok:lombok')
+	testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+// NPM and ng tasks - Note that running these tasks in Eclipse has varying results (due to PATH issues)
+
+task npmInstall(type: Exec) {
+	description 'Download node dependencies'
+	group 'Build'
+
+	inputs.file(new File(rootDir, ngSrcDir + '/package.json'))
+	outputs.dir(new File(rootDir, ngSrcDir + '/node_modules'))
+	workingDir file(new File(rootDir, ngSrcDir))
+	commandLine npm, 'install'
+}
+
+// When launching / building Spring Boot app in Eclipse, the default output path is the bin folder (vs build for a gradle build)
+// with that in mind you probably want to invoke these tasks with an amended '-PngBuildDir=bin/static' to ensure the app has the
+// built static web artifacts on the classpath 
+
+task ngBuild(type: Exec) {
+	description 'Build the Angular 2 App'
+	group 'Build'
+
+	dependsOn npmInstall
+
+	inputs.files(fileTree(new File(rootDir, ngSrcDir)))
+	outputs.dir(file(new File(rootDir, ngBuildDir)))
+	workingDir file(new File(rootDir, ngSrcDir))
+	commandLine ng, 'build', '-op', file(new File(rootDir, ngBuildDir))
+}
+
+task ngWatch(type: Exec) {
+	description 'Continuously build the Angular 2 App'
+	group 'Build'
+
+	dependsOn npmInstall
+	
+	workingDir file(new File(rootDir, ngSrcDir))
+	commandLine ng, 'build', '-w', '-op', file(new File(rootDir, ngBuildDir))
+}
+
+classes.dependsOn ngBuild
